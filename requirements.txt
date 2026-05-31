@@ -1,0 +1,6 @@
+pretty_midi
+music21
+torch
+numpy
+tqdm
+jupyter
