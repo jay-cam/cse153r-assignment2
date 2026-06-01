@@ -8,7 +8,6 @@
 # This project explores two approaches to music generation. Each task includes data collection and preprocessing, modeling, evaluation, and discussion of related work.
 
 # # Task 1: Symbolic Unconditioned Generation
-# Team members for this task: Jay and Kyle
 
 # ## 1. Exploratory Analysis, Data Collection, Pre-processing, and Discussion
 
@@ -956,8 +955,6 @@ summary_stats
 # The duration statistics show a clearer difference between the two models. The Markov output has a longer mean duration of about 0.62 seconds, while the LSTM output has a mean duration of about 0.37 seconds, closer to the POP909 training mean of about 0.42 seconds. This suggests that the LSTM output better matches the overall duration behavior of the training melodies, while the Markov output tends to produce slower note sequences.
 
 # ## 4. Discussion of Related Work
-
-# ## 4. Discussion of Related Work
 # 
 # ### 4.1 POP909
 # 
@@ -1012,51 +1009,3 @@ summary_stats
 # Wang, Z., Chen, K., Jiang, J., Zhang, Y., Xu, M., Dai, S., Gu, X., & Xia, G. (2020). POP909: A pop-song dataset for music arrangement generation. *Proceedings of the 21st International Society for Music Information Retrieval Conference (ISMIR)*, 38–45.
 # 
 # Wang, Z., Min, L., & Xia, G. (2024). Whole-song hierarchical generation of symbolic music using cascaded diffusion models. *International Conference on Learning Representations (ICLR)*.
-
-# ## Draft Script:
-# 
-# For our part of the project, we worked on Task 1, which is symbolic unconditioned music generation. The goal of this task is to train a model that learns a distribution over symbolic music and then samples from that distribution to generate a new piece of music. In our case, symbolic music means MIDI-based note information rather than raw audio. So instead of generating a waveform directly, the model generates a sequence of musical note events that can be converted back into a MIDI file.
-# 
-# For the dataset, we chose POP909, which came from the Module 3 symbolic music generation slide deck. POP909 contains 909 popular songs with professional piano arrangements in MIDI format. We chose this dataset because it is much cleaner and more structured than scraping random MIDI files from the internet. Each song folder includes a main MIDI file, beat annotations, chord annotations, key annotations, and alternate arrangement versions. The main MIDI files are also separated into three tracks: MELODY, BRIDGE, and PIANO. For this project, we focused only on the MELODY track because the task is unconditioned symbolic melody generation, and using just the melody track made the pipeline easier to train, debug, and evaluate.
-# 
-# The first part of the notebook is data collection, preprocessing, and exploratory analysis. We started by loading the POP909 directory and finding the 909 main MIDI files. We specifically avoided using the alternate versions folder for this first version of the project because we wanted one clean main MIDI file per song. After finding the MIDI files, we inspected one example file to confirm that the tracks were organized the way the dataset described. The first file had three instruments: MELODY, BRIDGE, and PIANO, which confirmed that the track structure was consistent with what we expected.
-# 
-# After that, we extracted note events from the MELODY track. For each note, we saved the song ID, pitch, start time, end time, duration, and velocity. We first tested this on one MIDI file to make sure the parsing worked correctly, then scaled it to all 909 songs. In total, we extracted 309,423 melody notes from the dataset. This gave us a structured DataFrame where each row represents one symbolic note event from the POP909 melody tracks.
-# 
-# For the exploratory analysis, we looked at the pitch distribution and note duration distribution. The pitch distribution showed that most melody notes were concentrated in a practical melodic range, mostly around MIDI pitches 60 to 82, with an average around 71.6. That makes sense for pop melody data because the melody generally stays in a singable or playable register. We also plotted the duration distribution and found that most notes were short, with many under half a second, while a smaller number of notes were much longer. This mattered for the model because we did not want to model pitch only; rhythm and duration are also important for making the generated output sound musical.
-# 
-# The next major section is modeling. The first modeling step was to convert the raw note events into symbolic tokens. We created a simple pitch-duration token representation. Each token stores the MIDI pitch and a quantized duration category. For example, a note might become something like PITCH_70_DUR_short or PITCH_72_DUR_medium. We used duration bins such as very_short, short, medium, long, and very_long. This simplified the continuous duration values into a smaller set of categories that the model could learn more easily.
-# 
-# We then built song-level token sequences. Each song became a list of pitch-duration tokens ordered by note start time. This is important because both the Markov baseline and the LSTM model treat the melody as a sequence. The model is not looking at a static table; it is learning which musical events tend to follow earlier musical events.
-# 
-# Before building the LSTM, we implemented a baseline n-gram or Markov model. This baseline uses a trigram setup, meaning it looks at the previous two tokens and learns a distribution over the next possible token. This is useful because Markov chains are a classic symbolic music generation approach and were also discussed in Module 3. However, the Markov model has a major limitation: it only uses a fixed short context. In this project, the Markov model only looks at the previous two pitch-duration tokens. That means it can learn local note transitions, but it cannot really learn longer phrase structure or repeated musical ideas.
-# 
-# After the Markov baseline, we moved to the LSTM model, which is the main model for this version of the project. An LSTM is a type of recurrent neural network designed for sequence modeling. The reason this makes sense for music is that melodies are sequential. The next note often depends on more than just the immediately previous note. It can depend on a longer melodic contour, repeated motifs, rhythm patterns, and phrase-level context. So instead of only looking at the previous two tokens like the Markov baseline, the LSTM uses a sequence of 32 previous tokens to predict the next token.
-# 
-# To prepare the LSTM data, we built a vocabulary from all unique pitch-duration tokens in the dataset. The final vocabulary size was 245 tokens. Then we created mappings from token to integer ID and from integer ID back to token. This is necessary because the LSTM cannot train directly on strings like PITCH_70_DUR_short. It needs integer token IDs.
-# 
-# Next, we converted each song’s token sequence into a sequence of integer IDs. Then we built a PyTorch dataset for next-token prediction. Each training example consists of 32 previous token IDs as the input and the next token ID as the target. So the model is trained with the question: given these 32 previous musical events, what token should come next? This created 280,335 training examples.
-# 
-# We then split the data into training and validation sets using an 80/20 split. The training set had 224,268 examples, and the validation set had 56,067 examples. We wrapped these with PyTorch DataLoaders so the model could train in batches of 128 examples at a time.
-# 
-# The LSTM model itself has three main parts: an embedding layer, an LSTM layer, and a final linear output layer. The embedding layer converts token IDs into dense vector representations. The LSTM processes the sequence of embedded tokens and produces hidden states. Then the final linear layer maps the last hidden state to a score for each possible token in the vocabulary. Since there are 245 unique tokens, the model outputs 245 raw scores, or logits, and those scores are used to predict the next token.
-# 
-# For training, we used cross-entropy loss, which is standard for next-token prediction. The optimizer was Adam with a learning rate of 0.001. We first trained for one epoch as a smoke test to make sure everything worked. The first one-epoch run gave a training loss of about 3.39 and a validation loss of about 3.08. Then we trained for five more epochs. Across those five epochs, the validation loss kept decreasing from about 2.96 to 2.76, which showed that the LSTM was actually learning patterns from the POP909 melody tokens instead of just producing random predictions.
-# 
-# After training, we sampled from the LSTM to generate a new melody. We started from a random real sequence from the dataset, then repeatedly asked the model to predict the next token. Each generated token was fed back into the model so it could continue generating autoregressively. We used temperature sampling, where lower temperature makes the output more conservative and higher temperature makes it more random. The generated token sequence was then converted back into a MIDI file by mapping each pitch-duration token back into a MIDI note event.
-# 
-# The next section is evaluation. We evaluated the model in a few different ways. First, we plotted training and validation loss. Both losses decreased, which showed that the model was learning the next-token prediction task. Then we computed validation perplexity from the final validation loss. The final LSTM validation loss was about 2.76, which gave a perplexity of about 15.79. Perplexity is useful because it measures how surprised the model is by held-out token sequences. Lower perplexity means the model assigns higher probability to the correct next tokens.
-# 
-# We also made the comparison between the Markov baseline and the LSTM more fair by rebuilding the Markov baseline using only the training split and then evaluating it on the validation split. The training-only trigram Markov baseline had a validation loss of about 3.82 and a perplexity of about 45.62. In comparison, the LSTM had a validation loss of about 2.76 and a perplexity of about 15.79. This showed that the LSTM performed substantially better on held-out next-token prediction than the fixed-context Markov baseline.
-# 
-# Beyond loss and perplexity, we also compared generated music statistics. We converted both the Markov output and the LSTM output back into DataFrames and compared their pitch and duration statistics against the training data. The LSTM-generated melody had a mean pitch close to the POP909 melody average, while the Markov output had a slightly lower average pitch. Both generated outputs had narrower pitch ranges than the full training set, which makes sense because each generated file is much shorter than the entire dataset. For duration, the LSTM output was closer to the training distribution than the Markov output, which suggested that the LSTM learned the rhythm behavior of the dataset better than the baseline.
-# 
-# The last section before the listening discussion is related work. POP909 itself was originally introduced for music arrangement generation, especially tasks like generating piano accompaniment conditioned on a melody and re-orchestrating audio into piano arrangement form. However, the POP909 authors also note that the dataset can support unconditional symbolic music generation, which is exactly what we are doing here. Our project is much simpler than the original POP909 paper because we only use the MELODY track instead of modeling full piano arrangements.
-# 
-# For the modeling side, Markov chains and n-gram models are classic symbolic generation methods because they learn transition probabilities over musical tokens. They are simple and interpretable, but they struggle with long-term musical structure. RNNs and LSTMs improve on this by learning trainable sequence representations. Prior systems like FolkRNN, Melody RNN, Performance RNN, and DeepBach all use related sequence-modeling ideas for symbolic music generation. Our model is much smaller than those systems, but it follows the same general framework: represent music as tokens, train a sequence model to predict the next token, and sample from the model to generate new symbolic music.
-# 
-# Overall, this project produced a complete symbolic unconditioned generation pipeline. Starting from POP909 MIDI files, we extracted melody notes, built pitch-duration tokens, trained a Markov baseline, trained an LSTM next-token model, generated new MIDI outputs, and evaluated the model using loss, perplexity, generated statistics, and comparison against the baseline. The final output is not a complete pop arrangement because it only contains a melody line, but it does show that the LSTM learned useful structure from the dataset and can generate a playable symbolic melody from scratch.
-# 
-# And with that, we move on to the listening discussion of our symbolic unconditioned music generation LSTM model.
-
-# ### 4.5 Listening Discussion
