@@ -7,7 +7,8 @@ This project contains separate task notebooks during development. Each task has 
 - Notebook: `task1_symbolic_unconditioned.ipynb`
 - GitHub-readable export: `task1_symbolic_unconditioned.py`
 - Optional HTML preview: `task1_symbolic_unconditioned.html`
-- Presentation section: 0:00–14:36 in the video
+- Presentation section: 0:00–11:41 in the video
+- Video like `https://drive.google.com/file/d/1SFgo8EaXfCn5dhybw0i4nWX8k-OiEHsu/view?usp=sharing`
 
 This notebook loads the POP909 dataset, extracts the `MELODY` tracks, trains a trigram Markov baseline and an LSTM next-token model, generates MIDI outputs, and evaluates the generated melodies using loss, perplexity, generated statistics, and listening discussion.
 
@@ -16,7 +17,7 @@ This notebook loads the POP909 dataset, extracts the `MELODY` tracks, trains a t
 - Notebook: `task2_<name>.ipynb`
 - GitHub-readable export: `task2_<name>.py`
 - Optional HTML preview: `task2_<name>.html`
-- Presentation section: 14:36–25:00 in the video
+- Presentation section: 11:342–21:00 in the video
 
 <Brief description of the second task.>
 
